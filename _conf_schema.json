@@ -1,0 +1,81 @@
+{
+  "enable": {
+    "description": "是否启用长期记忆系统",
+    "type": "bool",
+    "default": true
+  },
+  "db_path": {
+    "description": "SQLite 数据库文件路径，留空则使用插件数据目录下的 memory_system.db",
+    "type": "string",
+    "default": ""
+  },
+  "auto_memorize": {
+    "description": "每轮对话后是否调用 LLM 自动提取长期记忆",
+    "type": "bool",
+    "default": true
+  },
+  "auto_recall": {
+    "description": "LLM 请求前是否自动检索相关记忆并注入",
+    "type": "bool",
+    "default": true
+  },
+  "auto_compress": {
+    "description": "对话历史超过阈值时是否自动压缩为摘要",
+    "type": "bool",
+    "default": true
+  },
+  "max_inject_memories": {
+    "description": "每次注入的相关记忆最大条数",
+    "type": "int",
+    "default": 5,
+    "hint": "建议 3~8"
+  },
+  "max_inject_tokens": {
+    "description": "记忆包注入的 token 预算上限（粗估）",
+    "type": "int",
+    "default": 600,
+    "hint": "建议 300~1200"
+  },
+  "compress_threshold_tokens": {
+    "description": "触发自动压缩的历史 token 阈值（粗估）",
+    "type": "int",
+    "default": 3000,
+    "hint": "建议 2000~6000，设为 0 以下则不触发"
+  },
+  "keep_recent_messages": {
+    "description": "压缩时保留最近 N 条原文消息",
+    "type": "int",
+    "default": 8
+  },
+  "importance_threshold": {
+    "description": "自动提取时的重要度门槛（低于该值不保存），0~1",
+    "type": "float",
+    "default": 0.5
+  },
+  "embedding_enable": {
+    "description": "是否启用 embedding 向量检索（默认关闭，使用关键词打分检索）",
+    "type": "bool",
+    "default": false,
+    "hint": "开启前需确认 AstrBot 版本的 EmbeddingProvider 接口（见 adapter.py TODO）"
+  },
+  "embedding_provider_id": {
+    "description": "embedding 提供商 ID（embedding_enable 开启时使用）",
+    "type": "string",
+    "default": ""
+  },
+  "llm_provider_id": {
+    "description": "用于记忆提取/压缩/工具的 LLM 提供商 ID，留空则使用当前对话提供商",
+    "type": "string",
+    "default": ""
+  },
+  "admin_only_commands": {
+    "description": "是否仅管理员可使用 /记忆 管理命令",
+    "type": "bool",
+    "default": false
+  },
+  "candidate_pool": {
+    "description": "检索时的候选记忆池大小（取最近 N 条参与打分）",
+    "type": "int",
+    "default": 300
+  }
+}

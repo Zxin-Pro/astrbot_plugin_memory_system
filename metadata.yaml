@@ -1,0 +1,6 @@
+name: astrbot_plugin_memory_system
+desc: 长期记忆系统：自动记忆提取、相关记忆检索、上下文注入、历史压缩、LLM 记忆工具与中文管理命令
+help: 为机器人提供跨会话的长期记忆能力。使用 /记忆 帮助 查看管理命令。
+version: v1.0.0
+author: Zxin-Pro
+repo: https://github.com/Zxin-Pro/astrbot_plugin_memory_system
