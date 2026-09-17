@@ -218,6 +218,43 @@ def test_utils():
     assert len(extract_keywords_text("打羽毛球 abc")) > 0
 
 
+# ----------------------------------------------------------------- 插件页 API
+
+async def test_page_api():
+    with tempfile.TemporaryDirectory() as tmp:
+        db, mgr = await make_manager(tmp)
+        await mgr.memorize("u1", "用户喜欢打羽毛球", tags=["运动"], importance=0.9)
+        await mgr.memorize("u2", "用户在学 Rust", memory_type="event", importance=0.6)
+        from webui.page_api import PageAPI
+
+        page = PageAPI(db, mgr)
+        stats = await page.stats({})
+        assert stats["total"] == 2 and set(stats["users"]) == {"u1", "u2"}
+        lst = await page.list_memories({"page": "1", "page_size": "1"})
+        assert lst["total"] == 2 and len(lst["memories"]) == 1
+        found = await page.search({"keyword": "羽毛球"})
+        assert len(found) == 1 and found[0]["user_id"] == "u1"
+        users = await page.users()
+        assert users[0]["user_id"] == "u1" and users[0]["count"] == 1
+        added = await page.add({"user_id": "u3", "content": "页面添加的记忆"})
+        assert added["id"] > 0
+        try:
+            await page.add({"user_id": "", "content": "x"})
+            assert False, "缺少 user_id 应报 ValueError"
+        except ValueError:
+            pass
+        deleted = await page.delete({"id": added["id"]})
+        assert deleted["deleted"] is True
+        try:
+            await page.clear({})
+            assert False, "缺少 confirm 应报 ValueError"
+        except ValueError:
+            pass
+        cleared = await page.clear({"confirm": True})
+        assert cleared["deleted"] == 2
+        await db.close()
+
+
 # ----------------------------------------------------------------- WebUI
 
 async def test_webui_end_to_end():

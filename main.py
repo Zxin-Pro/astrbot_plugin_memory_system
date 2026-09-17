@@ -33,7 +33,15 @@ from .core.extractor import MemoryExtractor
 from .core.injector import MemoryInjector
 from .core.memory_manager import MemoryManager
 from .core.retriever import MemoryRetriever
+from .webui.page_api import PageAPI
 from .webui.server import MemoryWebUI
+
+try:  # 插件页桥接（AstrBot v4.28+ 提供官方 Plugin Pages 机制）
+    from astrbot.api.web import error_response, json_response, request
+
+    _WEB_API_AVAILABLE = True
+except ImportError:  # 老版本降级：仅保留独立 WebUI
+    _WEB_API_AVAILABLE = False
 
 AUTHOR = "Zxin-Pro"
 PLUGIN_NAME = "astrbot_plugin_memory_system"
@@ -61,6 +69,7 @@ class MemorySystemPlugin(Star):
         self.injector: MemoryInjector | None = None
         self.compressor: ContextCompressor | None = None
         self.webui: MemoryWebUI | None = None
+        self.page_api: PageAPI | None = None
         self._bg_tasks: set[asyncio.Task] = set()
 
     # ------------------------------------------------------------------ 生命周期
@@ -103,8 +112,17 @@ class MemorySystemPlugin(Star):
         )
         logger.info("[记忆系统] 初始化完成，数据库: %s", db_path)
 
-        # 可视化 WebUI（独立 HTTP 服务，不依赖 AstrBot 面板版本）
-        if self.config.get("webui_enable", True):
+        self.page_api = PageAPI(self.db, self.manager)
+        if _WEB_API_AVAILABLE:
+            self._register_page_apis()
+            logger.info(
+                "[记忆系统] 插件页已注册，请在 AstrBot 面板「插件 → 长期记忆系统」中打开 WebUI"
+            )
+        elif self.config.get("webui_enable", False):
+            logger.warning("[记忆系统] 当前 AstrBot 版本不支持插件页 Web API，回退到独立 WebUI")
+
+        # 独立 WebUI（可选的外部访问入口，默认关闭；面板内按钮走官方插件页）
+        if self.config.get("webui_enable", False):
             self.webui = MemoryWebUI(
                 self.db,
                 self.manager,
@@ -115,8 +133,89 @@ class MemorySystemPlugin(Star):
             try:
                 await self.webui.start()
             except OSError as e:
-                logger.error("[记忆系统] WebUI 启动失败（端口占用？）: %s", e)
+                logger.error("[记忆系统] 独立 WebUI 启动失败（端口占用？）: %s", e)
                 self.webui = None
+
+    # --------------------------------------------------------- 插件页 Web API
+
+    def _register_page_apis(self) -> None:
+        """注册 Dashboard 插件页使用的 Web API（路由必须带插件名前缀）。"""
+        reg = self.context.register_web_api
+        prefix = f"/{PLUGIN_NAME}"
+        reg(f"{prefix}/stats", self._page_stats, ["GET"], "记忆统计")
+        reg(f"{prefix}/list", self._page_list, ["GET"], "记忆列表")
+        reg(f"{prefix}/search", self._page_search, ["GET"], "搜索记忆")
+        reg(f"{prefix}/users", self._page_users, ["GET"], "用户列表")
+        reg(f"{prefix}/export", self._page_export, ["GET"], "导出记忆")
+        reg(f"{prefix}/add", self._page_add, ["POST"], "添加记忆")
+        reg(f"{prefix}/delete", self._page_delete, ["POST"], "删除记忆")
+        reg(f"{prefix}/clear", self._page_clear, ["POST"], "清空记忆")
+
+    @staticmethod
+    def _query_dict() -> dict[str, str]:
+        return {k: request.query.get(k) or "" for k in request.query.keys()}
+
+    @staticmethod
+    def _ok(data: Any) -> Any:
+        return json_response({"status": "ok", "data": data})
+
+    @staticmethod
+    def _handle_error(e: Exception) -> Any:
+        if isinstance(e, ValueError):
+            return error_response(str(e))
+        logger.exception("[记忆系统] 插件页接口异常")
+        return error_response(f"服务器内部错误: {e}", 500)
+
+    async def _page_stats(self):
+        try:
+            return self._ok(await self.page_api.stats(self._query_dict()))
+        except Exception as e:
+            return self._handle_error(e)
+
+    async def _page_list(self):
+        try:
+            return self._ok(await self.page_api.list_memories(self._query_dict()))
+        except Exception as e:
+            return self._handle_error(e)
+
+    async def _page_search(self):
+        try:
+            return self._ok(await self.page_api.search(self._query_dict()))
+        except Exception as e:
+            return self._handle_error(e)
+
+    async def _page_users(self):
+        try:
+            return self._ok(await self.page_api.users())
+        except Exception as e:
+            return self._handle_error(e)
+
+    async def _page_export(self):
+        try:
+            return self._ok(await self.page_api.export(self._query_dict()))
+        except Exception as e:
+            return self._handle_error(e)
+
+    async def _page_add(self):
+        try:
+            body = await request.json(default={}) or {}
+            return self._ok(await self.page_api.add(body))
+        except Exception as e:
+            return self._handle_error(e)
+
+    async def _page_delete(self):
+        try:
+            body = await request.json(default={}) or {}
+            return self._ok(await self.page_api.delete(body))
+        except Exception as e:
+            return self._handle_error(e)
+
+    async def _page_clear(self):
+        try:
+            body = await request.json(default={}) or {}
+            return self._ok(await self.page_api.clear(body))
+        except Exception as e:
+            return self._handle_error(e)
 
     async def terminate(self) -> None:
         """插件卸载时释放资源。"""

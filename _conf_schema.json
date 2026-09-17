@@ -79,9 +79,9 @@
     "default": 300
   },
   "webui_enable": {
-    "description": "是否启用可视化 WebUI 面板（独立 HTTP 服务）",
+    "description": "是否启用独立 WebUI 服务（外部访问入口；面板内按钮走官方插件页，无需开启此项）",
     "type": "bool",
-    "default": true
+    "default": false
   },
   "webui_host": {
     "description": "WebUI 监听地址",

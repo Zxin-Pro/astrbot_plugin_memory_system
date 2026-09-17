@@ -66,9 +66,12 @@ astrbot_plugin_memory_system/
 ├── requirements.txt
 ├── README.md
 ├── adapter.py         # 所有 AstrBot API 调用隔离层（含 TODO 标注）
+├── pages/webui/       # 官方插件页（AstrBot 面板插件卡片上的 WebUI 按钮）
+│   └── index.html
 ├── webui/
-│   ├── server.py          # WebUI 服务（aiohttp：REST API + 登录鉴权）
-│   └── index.html         # 单页面板（统计/列表/搜索/添加/删除/清空/导出）
+│   ├── page_api.py        # 插件页后端 API 逻辑层（可独立单测）
+│   ├── server.py          # 独立 WebUI 服务（可选，aiohttp + 密码鉴权）
+│   └── index.html         # 独立 WebUI 单页面板
 ├── core/
 │   ├── database.py        # SQLite 持久化（参数化 SQL，aiosqlite 优先）
 │   ├── memory_manager.py  # 业务层：去重、校验、格式化
@@ -84,15 +87,11 @@ astrbot_plugin_memory_system/
 
 ## WebUI 可视化面板
 
-插件启动后自带一个独立 WebUI（不依赖 AstrBot 面板版本），默认 `http://<服务器IP>:6198`：
+**方式一（推荐）：AstrBot 面板插件页**（v4.28.0+ 自带机制，无需额外配置）
+打开 AstrBot 面板 →「插件」→「长期记忆系统」→ 点击 **WebUI** 按钮即可进入面板。鉴权由面板统一处理，功能包括：统计卡片、按用户筛选的记忆列表（分页/删除/重要度可视化）、跨用户搜索、手动添加、清空指定用户或全部记忆、导出 JSON。
 
-- **统计卡片**：记忆总数、用户数、平均重要度、累计访问、类型分布
-- **记忆列表**：按用户筛选、分页、单条删除，重要度可视化进度条
-- **搜索**：跨用户关键词搜索
-- **添加记忆**：手动指定用户 / 类型 / 标签 / 重要度
-- **管理**：清空指定用户 / 清空全部（带二次确认），导出 JSON
-
-安全提示：
+**方式二：独立 WebUI 服务**（可选，供面板外直接访问）
+配置 `webui_enable: true` 后，插件会启动独立 HTTP 服务（默认 `http://<服务器IP>:6198`）：
 - `webui_password` 设置密码后需登录（Bearer Token）；留空则免登录，**公网服务器务必设置密码**
 - 公网部署建议 `webui_host` 保持 `0.0.0.0` + 强密码，或改 `127.0.0.1` 配合反向代理
 
