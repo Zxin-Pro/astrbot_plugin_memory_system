@@ -43,7 +43,7 @@ PLUGIN_NAME = "astrbot_plugin_memory_system"
     name=PLUGIN_NAME,
     author=AUTHOR,
     desc="为机器人提供长期记忆：自动提取、相关检索、上下文注入、历史压缩与 LLM 记忆工具",
-    version="1.0.0",
+    version="1.1.0",
     repo="https://github.com/Zxin-Pro/astrbot_plugin_memory_system",
 )
 class MemorySystemPlugin(Star):
