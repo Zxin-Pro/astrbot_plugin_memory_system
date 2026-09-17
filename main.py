@@ -44,14 +44,15 @@ except ImportError:  # 老版本降级：仅保留独立 WebUI
     _WEB_API_AVAILABLE = False
 
 AUTHOR = "Zxin-Pro"
-PLUGIN_NAME = "astrbot_plugin_memory_system"
+PLUGIN_NAME = "长期记忆系统"  # 面板显示名（插件页路由前缀必须与它一致）
+PLUGIN_ID = "astrbot_plugin_memory_system"  # 数据目录等使用的稳定英文 ID
 
 
 @register(
-    name=PLUGIN_NAME,
+    name="长期记忆系统",
     author=AUTHOR,
-    desc="为机器人提供长期记忆：自动提取、相关检索、上下文注入、历史压缩与 LLM 记忆工具",
-    version="1.1.0",
+    desc="为机器人提供跨会话的长期记忆：自动提取、相关检索、上下文注入、历史压缩、LLM 记忆工具与可视化面板",
+    version="1.1.1",
     repo="https://github.com/Zxin-Pro/astrbot_plugin_memory_system",
 )
 class MemorySystemPlugin(Star):
@@ -139,17 +140,25 @@ class MemorySystemPlugin(Star):
     # --------------------------------------------------------- 插件页 Web API
 
     def _register_page_apis(self) -> None:
-        """注册 Dashboard 插件页使用的 Web API（路由必须带插件名前缀）。"""
+        """注册 Dashboard 插件页使用的 Web API。
+
+        路由前缀必须与插件显示名一致（bridge 按显示名构造 /api/plug/<名>/<端点>）；
+        为兼容不同版本对面板名的取值，同时注册显示名与英文 ID 两套前缀。
+        """
         reg = self.context.register_web_api
-        prefix = f"/{PLUGIN_NAME}"
-        reg(f"{prefix}/stats", self._page_stats, ["GET"], "记忆统计")
-        reg(f"{prefix}/list", self._page_list, ["GET"], "记忆列表")
-        reg(f"{prefix}/search", self._page_search, ["GET"], "搜索记忆")
-        reg(f"{prefix}/users", self._page_users, ["GET"], "用户列表")
-        reg(f"{prefix}/export", self._page_export, ["GET"], "导出记忆")
-        reg(f"{prefix}/add", self._page_add, ["POST"], "添加记忆")
-        reg(f"{prefix}/delete", self._page_delete, ["POST"], "删除记忆")
-        reg(f"{prefix}/clear", self._page_clear, ["POST"], "清空记忆")
+        endpoints = [
+            ("stats", self._page_stats, ["GET"], "记忆统计"),
+            ("list", self._page_list, ["GET"], "记忆列表"),
+            ("search", self._page_search, ["GET"], "搜索记忆"),
+            ("users", self._page_users, ["GET"], "用户列表"),
+            ("export", self._page_export, ["GET"], "导出记忆"),
+            ("add", self._page_add, ["POST"], "添加记忆"),
+            ("delete", self._page_delete, ["POST"], "删除记忆"),
+            ("clear", self._page_clear, ["POST"], "清空记忆"),
+        ]
+        for prefix in {f"/{PLUGIN_NAME}", f"/{PLUGIN_ID}"}:
+            for name, handler, methods, desc in endpoints:
+                reg(f"{prefix}/{name}", handler, methods, desc)
 
     @staticmethod
     def _query_dict() -> dict[str, str]:
