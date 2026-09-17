@@ -77,5 +77,27 @@
     "description": "检索时的候选记忆池大小（取最近 N 条参与打分）",
     "type": "int",
     "default": 300
+  },
+  "webui_enable": {
+    "description": "是否启用可视化 WebUI 面板（独立 HTTP 服务）",
+    "type": "bool",
+    "default": true
+  },
+  "webui_host": {
+    "description": "WebUI 监听地址",
+    "type": "string",
+    "default": "0.0.0.0",
+    "hint": "仅本机访问可改为 127.0.0.1"
+  },
+  "webui_port": {
+    "description": "WebUI 监听端口",
+    "type": "int",
+    "default": 6198,
+    "hint": "与 AstrBot 面板(6185)、NapCat(6099) 等端口避开"
+  },
+  "webui_password": {
+    "description": "WebUI 登录密码，留空则免登录（仅建议内网使用）",
+    "type": "string",
+    "default": ""
   }
 }

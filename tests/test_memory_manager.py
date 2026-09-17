@@ -218,6 +218,77 @@ def test_utils():
     assert len(extract_keywords_text("打羽毛球 abc")) > 0
 
 
+# ----------------------------------------------------------------- WebUI
+
+async def test_webui_end_to_end():
+    import aiohttp
+
+    with tempfile.TemporaryDirectory() as tmp:
+        db, mgr = await make_manager(tmp)
+        await mgr.memorize("u1", "用户喜欢打羽毛球", tags=["运动"], importance=0.9)
+        from webui.server import MemoryWebUI
+
+        ui = MemoryWebUI(db, mgr, host="127.0.0.1", port=0, password="pw123")
+        # port=0 由 aiohttp 分配随机端口
+        app_runner = None
+        from aiohttp import web as aioweb
+
+        runner = aioweb.AppRunner(ui._build_app(), access_log=None)
+        await runner.setup()
+        site = aioweb.TCPSite(runner, "127.0.0.1", 0)
+        await site.start()
+        port = runner.addresses[0][1]
+        base = f"http://127.0.0.1:{port}"
+        try:
+            async with aiohttp.ClientSession() as sess:
+                # 未登录应 401
+                async with sess.get(f"{base}/api/stats") as r:
+                    assert r.status == 401
+                # 密码错误 403
+                async with sess.post(
+                    f"{base}/api/login", json={"password": "wrong"}
+                ) as r:
+                    assert r.status == 403
+                # 正确登录
+                async with sess.post(
+                    f"{base}/api/login", json={"password": "pw123"}
+                ) as r:
+                    tok = (await r.json())["data"]["token"]
+                auth = {"Authorization": f"Bearer {tok}"}
+                async with sess.get(f"{base}/api/stats", headers=auth) as r:
+                    data = (await r.json())["data"]
+                    assert data["total"] == 1 and "u1" in data["users"]
+                async with sess.get(f"{base}/api/list?page=1", headers=auth) as r:
+                    d = (await r.json())["data"]
+                    assert d["total"] == 1 and d["memories"][0]["content"].startswith("用户喜欢")
+                async with sess.get(
+                    f"{base}/api/search?keyword=羽毛球", headers=auth
+                ) as r:
+                    d = (await r.json())["data"]
+                    assert len(d) == 1
+                async with sess.post(
+                    f"{base}/api/add",
+                    headers=auth,
+                    json={"user_id": "u2", "content": "测试记忆", "type": "event"},
+                ) as r:
+                    d = (await r.json())["data"]
+                    assert d["id"] > 0
+                async with sess.post(
+                    f"{base}/api/delete", headers=auth, json={"id": d["id"]}
+                ) as r:
+                    assert (await r.json())["data"]["deleted"] is True
+                async with sess.post(
+                    f"{base}/api/clear", headers=auth, json={"user_id": "u1", "confirm": True}
+                ) as r:
+                    assert (await r.json())["data"]["deleted"] == 1
+                # 首页静态文件
+                async with sess.get(f"{base}/") as r:
+                    assert r.status == 200 and b"long_term" not in await r.read()
+        finally:
+            await runner.cleanup()
+            await db.close()
+
+
 def extract_keywords_text(text: str):
     from core.utils import extract_keywords
 

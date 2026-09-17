@@ -267,6 +267,13 @@ class MemoryDatabase:
             await self._conn.commit()
             return cur.rowcount
 
+    async def clear_all(self) -> int:
+        """清空全部用户的记忆（WebUI 管理用），返回删除条数。"""
+        async with self._lock:
+            cur = await self._conn.execute("DELETE FROM memories")
+            await self._conn.commit()
+            return cur.rowcount
+
     async def import_memories(self, records: list[dict[str, Any]]) -> int:
         """批量导入记忆（导出文件格式），返回导入条数。"""
         count = 0
@@ -348,6 +355,16 @@ class MemoryDatabase:
         return await self._fetchall(
             f"SELECT * FROM memories WHERE {where} "
             "ORDER BY importance DESC, created_at DESC LIMIT ?",
+            tuple(params),
+        )
+
+    async def search_all_users(self, keyword: str = "", limit: int = 50) -> list[dict[str, Any]]:
+        """跨用户关键词搜索（WebUI 管理面板用）。"""
+        where = "content LIKE ?"
+        params: list[Any] = [f"%{keyword}%", int(limit)]
+        return await self._fetchall(
+            f"SELECT * FROM memories WHERE {where} "
+            "ORDER BY created_at DESC LIMIT ?",
             tuple(params),
         )
 

@@ -33,6 +33,7 @@ from .core.extractor import MemoryExtractor
 from .core.injector import MemoryInjector
 from .core.memory_manager import MemoryManager
 from .core.retriever import MemoryRetriever
+from .webui.server import MemoryWebUI
 
 AUTHOR = "Zxin-Pro"
 PLUGIN_NAME = "astrbot_plugin_memory_system"
@@ -59,6 +60,7 @@ class MemorySystemPlugin(Star):
         self.extractor: MemoryExtractor | None = None
         self.injector: MemoryInjector | None = None
         self.compressor: ContextCompressor | None = None
+        self.webui: MemoryWebUI | None = None
         self._bg_tasks: set[asyncio.Task] = set()
 
     # ------------------------------------------------------------------ 生命周期
@@ -101,11 +103,31 @@ class MemorySystemPlugin(Star):
         )
         logger.info("[记忆系统] 初始化完成，数据库: %s", db_path)
 
+        # 可视化 WebUI（独立 HTTP 服务，不依赖 AstrBot 面板版本）
+        if self.config.get("webui_enable", True):
+            self.webui = MemoryWebUI(
+                self.db,
+                self.manager,
+                host=str(self.config.get("webui_host", "0.0.0.0")),
+                port=int(self.config.get("webui_port", 6198)),
+                password=str(self.config.get("webui_password", "") or ""),
+            )
+            try:
+                await self.webui.start()
+            except OSError as e:
+                logger.error("[记忆系统] WebUI 启动失败（端口占用？）: %s", e)
+                self.webui = None
+
     async def terminate(self) -> None:
         """插件卸载时释放资源。"""
         for task in list(self._bg_tasks):
             task.cancel()
         self._bg_tasks.clear()
+        if self.webui is not None:
+            try:
+                await self.webui.stop()
+            except Exception:
+                logger.exception("[记忆系统] WebUI 停止失败")
         if self.db is not None:
             await self.db.close()
         logger.info("[记忆系统] 已卸载")

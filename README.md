@@ -36,6 +36,10 @@
 | llm_provider_id | "" | 提取/压缩/工具所用提供商，留空用当前对话提供商 |
 | admin_only_commands | false | 仅管理员可用 /记忆 命令 |
 | candidate_pool | 300 | 检索候选池大小 |
+| webui_enable | true | 是否启用可视化 WebUI 面板 |
+| webui_host | 0.0.0.0 | WebUI 监听地址 |
+| webui_port | 6198 | WebUI 监听端口 |
+| webui_password | "" | WebUI 登录密码，留空免登录 |
 
 ## 命令说明
 
@@ -62,6 +66,9 @@ astrbot_plugin_memory_system/
 ├── requirements.txt
 ├── README.md
 ├── adapter.py         # 所有 AstrBot API 调用隔离层（含 TODO 标注）
+├── webui/
+│   ├── server.py          # WebUI 服务（aiohttp：REST API + 登录鉴权）
+│   └── index.html         # 单页面板（统计/列表/搜索/添加/删除/清空/导出）
 ├── core/
 │   ├── database.py        # SQLite 持久化（参数化 SQL，aiosqlite 优先）
 │   ├── memory_manager.py  # 业务层：去重、校验、格式化
@@ -74,6 +81,20 @@ astrbot_plugin_memory_system/
 └── tests/
     └── test_memory_manager.py  # 10 个基础测试（python3 tests/test_memory_manager.py）
 ```
+
+## WebUI 可视化面板
+
+插件启动后自带一个独立 WebUI（不依赖 AstrBot 面板版本），默认 `http://<服务器IP>:6198`：
+
+- **统计卡片**：记忆总数、用户数、平均重要度、累计访问、类型分布
+- **记忆列表**：按用户筛选、分页、单条删除，重要度可视化进度条
+- **搜索**：跨用户关键词搜索
+- **添加记忆**：手动指定用户 / 类型 / 标签 / 重要度
+- **管理**：清空指定用户 / 清空全部（带二次确认），导出 JSON
+
+安全提示：
+- `webui_password` 设置密码后需登录（Bearer Token）；留空则免登录，**公网服务器务必设置密码**
+- 公网部署建议 `webui_host` 保持 `0.0.0.0` + 强密码，或改 `127.0.0.1` 配合反向代理
 
 ## 测试
 

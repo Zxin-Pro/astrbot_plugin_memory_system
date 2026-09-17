@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>长期记忆系统 · WebUI</title>
+<style>
+:root{
+  --bg:#0f1115;--card:#171a21;--card2:#1d212b;--border:#2a2f3c;
+  --text:#e6e9f0;--muted:#8b93a7;--accent:#6c8cff;--accent2:#8a63ff;
+  --green:#4ade80;--red:#f87171;--yellow:#fbbf24;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;min-height:100vh}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 16px 60px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+header h1{font-size:20px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.badge{font-size:12px;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:2px 10px}
+.spacer{flex:1}
+button{background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;transition:.15s}
+button:hover{border-color:var(--accent)}
+button.primary{background:linear-gradient(90deg,var(--accent),var(--accent2));border:none;color:#fff;font-weight:600}
+button.danger{color:var(--red);border-color:#5b2733}
+button:disabled{opacity:.5;cursor:not-allowed}
+input,select,textarea{background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.card .num{font-size:24px;font-weight:700;margin-top:4px}
+.card .label{font-size:12px;color:var(--muted)}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:8px 18px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--muted);border:1px solid transparent}
+.tab.active{color:var(--text);background:var(--card2);border-color:var(--accent)}
+.panel{display:none}
+.panel.active{display:block}
+.toolbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+table{width:100%;border-collapse:collapse;background:var(--card);border-radius:12px;overflow:hidden;border:1px solid var(--border)}
+th,td{padding:10px 12px;font-size:13px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+th{color:var(--muted);font-weight:500;background:var(--card2);position:sticky;top:0}
+tr:hover td{background:#1c2029}
+.type-tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px}
+.t-user_fact{background:#23408f33;color:#8fb0ff}.t-preference{background:#5e3a1f33;color:#ffb38a}
+.t-project{background:#1f4d3a33;color:#7be0b0}.t-relationship{background:#5b236433;color:#d9a0ff}
+.t-event{background:#4d4d1f33;color:#e6e07a}.t-summary{background:#3c3c4a66;color:#aab}
+.content-cell{max-width:420px;word-break:break-all;line-height:1.5}
+.muted{color:var(--muted);font-size:12px}
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:14px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-grid .full{grid-column:1/-1}
+.box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--accent);border-radius:10px;padding:10px 20px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:99}
+.toast.show{opacity:1}
+dialog{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:14px;padding:26px;min-width:320px}
+dialog::backdrop{background:#000a}
+.empty{text-align:center;color:var(--muted);padding:40px 0}
+.bar{height:4px;background:var(--card2);border-radius:4px;overflow:hidden;width:70px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+@media(max-width:640px){.form-grid{grid-template-columns:1fr}.content-cell{max-width:200px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🧠 长期记忆系统</h1>
+    <span class="badge">astrbot_plugin_memory_system</span>
+    <div class="spacer"></div>
+    <span class="muted" id="apiBase"></span>
+    <a id="exportBtn" download="memory_export.json"><button>导出 JSON</button></a>
+  </header>
+
+  <div class="cards" id="statsCards"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="list">记忆列表</div>
+    <div class="tab" data-tab="search">搜索</div>
+    <div class="tab" data-tab="add">添加记忆</div>
+    <div class="tab" data-tab="manage">管理</div>
+  </div>
+
+  <!-- 记忆列表 -->
+  <div class="panel active" id="panel-list">
+    <div class="toolbar">
+      <select id="userFilter"><option value="">全部用户</option></select>
+      <span class="muted" id="listInfo"></span>
+    </div>
+    <div style="overflow:auto;border-radius:12px;border:1px solid var(--border)">
+      <table><thead><tr>
+        <th>ID</th><th>类型</th><th>内容</th><th>重要度</th><th>标签</th><th>用户</th><th>访问</th><th>时间</th><th></th>
+      </tr></thead><tbody id="memBody"></tbody></table>
+    </div>
+    <div class="pager">
+      <button id="prevPage">上一页</button>
+      <span class="muted" id="pageInfo"></span>
+      <button id="nextPage">下一页</button>
+    </div>
+  </div>
+
+  <!-- 搜索 -->
+  <div class="panel" id="panel-search">
+    <div class="toolbar">
+      <input id="searchInput" placeholder="输入关键词搜索全部记忆…" style="flex:1;min-width:200px">
+      <button class="primary" id="searchBtn">搜索</button>
+    </div>
+    <div id="searchResult"></div>
+  </div>
+
+  <!-- 添加 -->
+  <div class="panel" id="panel-add">
+    <div class="box">
+      <div class="form-grid">
+        <div><label>用户 ID（必填，如 QQ 号）</label><input id="addUser" placeholder="例如 123456"></div>
+        <div><label>记忆类型</label>
+          <select id="addType">
+            <option value="user_fact">用户事实 user_fact</option>
+            <option value="preference">偏好 preference</option>
+            <option value="project">项目 project</option>
+            <option value="relationship">关系 relationship</option>
+            <option value="event">事件 event</option>
+          </select></div>
+        <div class="full"><label>记忆内容</label><textarea id="addContent" rows="3" placeholder="一句自包含的陈述句，例如：用户喜欢打羽毛球"></textarea></div>
+        <div><label>标签（逗号分隔）</label><input id="addTags" placeholder="运动, 爱好"></div>
+        <div><label>重要度：<span id="impVal">0.8</span></label><input type="range" id="addImp" min="0" max="1" step="0.05" value="0.8" style="width:100%"></div>
+        <div class="full"><button class="primary" id="addBtn">保存记忆</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理 -->
+  <div class="panel" id="panel-manage">
+    <div class="box">
+      <p style="margin-bottom:14px;color:var(--muted);font-size:13px">⚠️ 以下操作不可恢复，请谨慎使用。</p>
+      <div class="form-grid">
+        <div><label>清空指定用户的全部记忆</label>
+          <div style="display:flex;gap:8px"><input id="clearUser" placeholder="用户 ID"><button class="danger" id="clearUserBtn">清空该用户</button></div></div>
+        <div><label>清空全部记忆（所有用户）</label>
+          <button class="danger" id="clearAllBtn">清空全部记忆</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<dialog id="loginDialog">
+  <h3 style="margin-bottom:14px">🔒 需要登录</h3>
+  <input id="pwdInput" type="password" placeholder="WebUI 密码" style="width:100%;margin-bottom:12px">
+  <div style="display:flex;gap:8px;justify-content:flex-end">
+    <button class="primary" id="loginBtn">登录</button>
+  </div>
+  <p class="muted" id="loginErr" style="margin-top:10px;color:var(--red)"></p>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+let token=localStorage.getItem('mstoken')||'';
+let curPage=1,curUser='';
+const hdr=()=>({'Content-Type':'application/json','Authorization':'Bearer '+token});
+
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
+async function api(path,opts={}){
+  const r=await fetch(path,{...opts,headers:{...hdr(),...(opts.headers||{})}});
+  if(r.status===401){openLogin();throw new Error('unauthorized')}
+  const j=await r.json().catch(()=>({status:'error',message:'响应解析失败'}));
+  if(j.status==='error')throw new Error(j.message||'请求失败');
+  return j.data;
+}
+function openLogin(){if(!$('#loginDialog').open)$('#loginDialog').showModal()}
+$('#loginBtn').onclick=async()=>{
+  try{
+    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('#pwdInput').value})});
+    const j=await r.json();
+    if(j.status!=='ok')throw new Error(j.message);
+    token=j.data.token;localStorage.setItem('mstoken',token);
+    $('#loginDialog').close();$('#loginErr').textContent='';boot();
+  }catch(e){$('#loginErr').textContent=e.message}
+};
+
+const TYPE_LABEL={user_fact:'用户事实',preference:'偏好',project:'项目',relationship:'关系',event:'事件',summary:'摘要'};
+const fmtTime=ts=>ts?new Date(ts*1000).toLocaleString('zh-CN',{hour12:false}):'-';
+function impBar(v){return `<div style="display:flex;align-items:center;gap:6px"><div class="bar"><i style="width:${Math.round((v||0)*100)}%"></i></div><span class="muted">${(v||0).toFixed(2)}</span></div>`}
+
+async function loadStats(){
+  const s=await api('/api/stats');
+  const items=[['记忆总数',s.total],['用户数',s.users.length],['平均重要度',s.avg_importance],['累计访问',s.total_accesses]];
+  $('#statsCards').innerHTML=items.map(([l,n])=>`<div class="card"><div class="label">${l}</div><div class="num">${n}</div></div>`).join('')
+    +`<div class="card"><div class="label">类型分布</div><div class="num" style="font-size:13px;line-height:1.8">${Object.entries(s.by_type).map(([t,c])=>`${TYPE_LABEL[t]||t} ${c}`).join('<br>')||'—'}</div></div>`;
+  const sel=$('#userFilter'),keep=sel.value;
+  sel.innerHTML='<option value="">全部用户</option>'+s.users.map(u=>`<option value="${u}">${u}</option>`).join('');
+  if(keep)sel.value=keep;
+}
+async function loadList(){
+  const d=await api(`/api/list?page=${curPage}&page_size=20${curUser?`&user_id=${encodeURIComponent(curUser)}`:''}`);
+  const pages=Math.max(1,Math.ceil(d.total/20));
+  $('#pageInfo').textContent=`${curPage} / ${pages}`;
+  $('#listInfo').textContent=`共 ${d.total} 条`;
+  $('#memBody').innerHTML=d.memories.length?d.memories.map(m=>`<tr>
+    <td class="muted">#${m.id}</td>
+    <td><span class="type-tag t-${m.type}">${TYPE_LABEL[m.type]||m.type}</span></td>
+    <td class="content-cell">${(m.content||'').replace(/</g,'&lt;')}</td>
+    <td>${impBar(m.importance)}</td>
+    <td class="muted">${(m.tags||[]).join(', ')||'-'}</td>
+    <td class="muted">${m.user_id}</td>
+    <td class="muted">${m.access_count||0}</td>
+    <td class="muted">${fmtTime(m.created_at)}</td>
+    <td><button class="danger" onclick="delMem(${m.id})">删除</button></td>
+  </tr>`).join(''):`<tr><td colspan="9" class="empty">暂无记忆</td></tr>`;
+}
+window.delMem=async id=>{
+  if(!confirm(`确认删除记忆 #${id}？`))return;
+  await api('/api/delete',{method:'POST',body:JSON.stringify({id})});
+  toast('已删除');loadStats();loadList();
+};
+$('#prevPage').onclick=()=>{if(curPage>1){curPage--;loadList()}};
+$('#nextPage').onclick=()=>{curPage++;loadList().catch(()=>{curPage--})};
+$('#userFilter').onchange=()=>{curUser=$('#userFilter').value;curPage=1;loadList()};
+
+async function doSearch(){
+  const kw=$('#searchInput').value.trim();
+  if(!kw)return toast('请输入关键词');
+  const list=await api(`/api/search?keyword=${encodeURIComponent(kw)}${curUser?`&user_id=${encodeURIComponent(curUser)}`:''}`);
+  $('#searchResult').innerHTML=list.length?`<table><thead><tr><th>ID</th><th>类型</th><th>内容</th><th>用户</th></tr></thead><tbody>${
+    list.map(m=>`<tr><td class="muted">#${m.id}</td><td><span class="type-tag t-${m.type}">${TYPE_LABEL[m.type]||m.type}</span></td><td class="content-cell">${m.content.replace(/</g,'&lt;')}</td><td class="muted">${m.user_id}</td></tr>`).join('')
+  }</tbody></table>`:'<div class="empty">没有匹配的记忆</div>';
+}
+$('#searchBtn').onclick=doSearch;
+$('#searchInput').onkeydown=e=>{if(e.key==='Enter')doSearch()};
+
+$('#addImp').oninput=()=>$('#impVal').textContent=$('#addImp').value;
+$('#addBtn').onclick=async()=>{
+  const user_id=$('#addUser').value.trim(),content=$('#addContent').value.trim();
+  if(!user_id||!content)return toast('用户 ID 和内容不能为空');
+  const tags=$('#addTags').value.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+  await api('/api/add',{method:'POST',body:JSON.stringify({user_id,content,type:$('#addType').value,tags,importance:parseFloat($('#addImp').value)})});
+  toast('已保存');$('#addContent').value='';$('#addTags').value='';loadStats();
+};
+
+$('#clearUserBtn').onclick=async()=>{
+  const u=$('#clearUser').value.trim();
+  if(!u)return toast('请输入用户 ID');
+  if(!confirm(`确认清空用户 ${u} 的全部记忆？不可恢复！`))return;
+  const d=await api('/api/clear',{method:'POST',body:JSON.stringify({user_id:u,confirm:true})});
+  toast(d.deleted!==undefined?`已删除 ${d.deleted} 条`:'已清空');loadStats();loadList();
+};
+$('#clearAllBtn').onclick=async()=>{
+  if(!confirm('确认清空所有用户的全部记忆？此操作不可恢复！'))return;
+  const d=await api('/api/clear',{method:'POST',body:JSON.stringify({confirm:true})});
+  toast(`已删除 ${d.deleted} 条`);loadStats();loadList();
+};
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');$('#panel-'+t.dataset.tab).classList.add('active');
+});
+
+function boot(){
+  $('#apiBase').textContent=location.host;
+  $('#exportBtn').href='/api/export';
+  loadStats().then(loadList).catch(()=>{});
+}
+boot();
+</script>
+</body>
+</html>

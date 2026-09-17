@@ -83,6 +83,9 @@ class MemoryManager:
     async def clear(self, user_id: str, session_id: str | None = None) -> int:
         return await self.db.clear(user_id, session_id)
 
+    async def clear_all(self) -> int:
+        return await self.db.clear_all()
+
     async def record_access(self, memory_ids: list[int]) -> None:
         """批量记录访问，用于排序权重。"""
         for mid in memory_ids:
