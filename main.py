@@ -52,7 +52,7 @@ PLUGIN_ID = "astrbot_plugin_memory_system"  # 数据目录等使用的稳定英�
     name="长期记忆系统",
     author=AUTHOR,
     desc="为机器人提供跨会话的长期记忆：自动提取、相关检索、上下文注入、历史压缩、LLM 记忆工具与可视化面板",
-    version="1.1.1",
+    version="1.2.0",
     repo="https://github.com/Zxin-Pro/astrbot_plugin_memory_system",
 )
 class MemorySystemPlugin(Star):
